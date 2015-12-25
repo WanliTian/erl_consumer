@@ -8,5 +8,7 @@
                   stdlib
                  ]},
   {mod, { erl_consumer_app, []}},
-  {env, []}
+  {env, [
+        {kafka_brokers, []}
+  ]}
  ]}.
