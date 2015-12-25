@@ -1,3 +1,7 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% 1. Monitor node up/down messages
+%%% 2. Monitor config file for changing 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 -module(arbiter).
 -behaviour(gen_server).
 -define(SERVER, ?MODULE).
