@@ -10,6 +10,7 @@
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
+    config:check(),
     erl_consumer_sup:start_link().
 
 stop(_State) ->
