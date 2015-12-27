@@ -29,7 +29,7 @@
 -define(METADATA_REQUEST,                    3).
 -define(OFFSET_COMMIT_REQUEST,               8).
 -define(OFFSET_FETCH_REQUEST,                9).
--define(CONSUMER_METADATA_REQUEST,          10).
+-define(COORDINATOR_REQUEST,                10).
 
 %% define kafka protocol request and response record
 -record(message, {
@@ -60,6 +60,17 @@
 
 -record(fetch_res, {
     topic_anchor_list=[] :: list()
+}).
+
+-record(coordinator_req, {
+    group_id= <<"erl_consumer">> :: binary()
+}).
+
+-record(coordinator_res, {
+    error_code=0:: integer(),
+    broker_id   :: integer(),
+    host        :: binary(),
+    port        :: integer()
 }).
 
 -record(topic_anchor, {
