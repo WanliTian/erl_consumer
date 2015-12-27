@@ -17,11 +17,13 @@
 -define(ConsumerCoordinatorNotAvailableCode, 15).
 -define(NotCoordinatorForConsumerCode,       16).
 
+%% define kafka protocol common params
 -define(API_VERSION,                         0).
 -define(MAX_BYTES,               (5*1024*1024)).
 -define(MIN_BYTES,                           1).
 -define(MAX_WAIT_TIME,                    1000).
 
+%% define kafka protocol apikey
 -define(FETCH_REQUEST,                       1).
 -define(OFFSET_REQUEST,                      2).
 -define(METADATA_REQUEST,                    3).
@@ -29,19 +31,32 @@
 -define(OFFSET_FETCH_REQUEST,                9).
 -define(CONSUMER_METADATA_REQUEST,          10).
 
--record(anchor, {
-    consumer_group :: binary(),
-    topic          :: binary(),
-    partition      :: integer()
-}).
-
+%% define kafka protocol request and response record
 -record(metadata_req,{
     topics=[] :: list()
 }).
 
 -record(metadata_res, {
     brokers=[] :: list(),
-    topics=[]  :: list()
+    topics =[] :: list()
+}).
+
+-record(fetch_req, {
+    topic_anchor_list=[] :: list()
+}).
+
+-record(topic_anchor, {
+    topic :: binary(),
+    partition_anchor_list=[] :: list()
+}).
+
+-record(partition_anchor, {
+    partition :: integer(),
+    offset    :: integer(),
+    max_bytes=?MAX_BYTES :: integer()
+}).
+
+-record(fetch_res, {
 }).
 
 -record(broker, {
