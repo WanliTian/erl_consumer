@@ -43,20 +43,32 @@ add(FetchReq=#fetch_req{topic_anchor_list = TopicAnchorList}, Topic, Partition, 
             {ok, FetchReq#fetch_req{topic_anchor_list = NewTopicAnchorList}}
     end.
 
-encode(_Req) ->
-    ok.
-%%encode(#fetch_req{topic= Topic, partition=Partition, offset=Offset}) ->
-%%    Message = <<-1:32/signed, ?MAX_WAIT_TIME:32/signed, ?MIN_BYTES:32/signed,
-%%        (common_proto:encode_array([<<(common_proto:encode_string(Topic))/binary,
-%%        (common_proto:encode_array([<<Partition:32/signed, Offset:64/signed, ?MAX_BYTES:32/signed>>]))/binary >>]))/binary >>,
-%%    Packet = common_proto:encode_request(?FETCH_REQUEST, Message),
-%%    {ok, Packet}.
+encode(#fetch_req{topic_anchor_list = TopicAnchorList}) ->
+    Message = <<-1:32/signed, ?MAX_WAIT_TIME:32/signed, ?MIN_BYTES:32/signed,
+        (encode_topic_anchor_list(TopicAnchorList))/binary>>,
+    Packet = common_proto:encode_request(?FETCH_REQUEST, Message),
+    {ok, Packet}.
 
 decode(_) ->
     ok.
 
+encode_topic_anchor_list(List) ->
+    EncodedList = lists:map(fun(TA) -> encode_topic_anchor(TA) end, List),
+    common_proto:encode_array(EncodedList).
+
+encode_topic_anchor(#topic_anchor{topic=Topic, partition_anchor_list = PartitionAnchorList}) ->
+    <<(common_proto:encode_string(Topic))/binary, (encode_partition_anchor_list(PartitionAnchorList))/binary>>.
+
+encode_partition_anchor_list(List) ->
+    EncodedList = lists:map(fun(PA) -> encode_partition_anchor(PA) end, List),
+    common_proto:encode_array(EncodedList).
+
+encode_partition_anchor(#partition_anchor{partition = Partition,
+    offset = Offset, max_bytes = MaxBytes}) ->
+    <<Partition:32/signed, Offset:64/signed, MaxBytes:32/signed>>.
+
 -ifdef(TEST).
-fetch_encode_test() ->
+fetch_add_test() ->
     {ok, F} = fetch:new(),
     {ok, F1} = fetch:add(F, <<"topic">>, 1, 1),
     [T] = F1#fetch_req.topic_anchor_list,
@@ -91,4 +103,18 @@ fetch_encode_test() ->
                         23 = P3#partition_anchor.offset
                 end
         end, T3).
+
+fetch_encode_test() ->
+    {ok, F} = fetch:new(),
+    {ok, F1} = fetch:add(F, <<"topic">>, 1, 1),
+    {ok, Packet} = fetch:encode(F1),
+    {ok, Packet} = encode(<<"topic">>, 1, 1).
+
+encode(Topic, Partition, Offset) ->
+    Message = <<-1:32/signed, ?MAX_WAIT_TIME:32/signed, ?MIN_BYTES:32/signed,
+        (common_proto:encode_array([<<(common_proto:encode_string(Topic))/binary,
+        (common_proto:encode_array([<<Partition:32/signed, Offset:64/signed, ?MAX_BYTES:32/signed>>]))/binary >>]))/binary >>,
+    Packet = common_proto:encode_request(?FETCH_REQUEST, Message),
+    {ok, Packet}.
+
 -endif.
