@@ -32,6 +32,19 @@
 -define(CONSUMER_METADATA_REQUEST,          10).
 
 %% define kafka protocol request and response record
+-record(message, {
+    crc=0         :: integer(),
+    magic_byte=0  :: integer(),
+    attributes=0  :: integer(),
+    key=undefined :: binary(),
+    value         :: binary()
+}).
+
+-record(message_set, {
+    offset=0 :: integer(),
+    message  :: #message{}
+}).
+
 -record(metadata_req,{
     topics=[] :: list()
 }).
@@ -45,18 +58,26 @@
     topic_anchor_list=[] :: list()
 }).
 
+-record(fetch_res, {
+    topic_anchor_list=[] :: list()
+}).
+
 -record(topic_anchor, {
     topic :: binary(),
     partition_anchor_list=[] :: list()
 }).
 
--record(partition_anchor, {
+-record(req_partition_anchor, {
     partition :: integer(),
     offset    :: integer(),
     max_bytes=?MAX_BYTES :: integer()
 }).
 
--record(fetch_res, {
+-record(res_partition_anchor, {
+    partition   :: integer(),
+    error_code  :: integer(),
+    hw_offset   :: integer(),
+    message_set :: #message_set{}
 }).
 
 -record(broker, {
@@ -78,3 +99,4 @@
     reps=[]      :: list(),
     isrs=[]      :: list()
 }).
+
