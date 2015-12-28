@@ -111,3 +111,18 @@
     isrs=[]      :: list()
 }).
 
+
+-record(offset_fetch_req, {
+    group_id :: binary(),
+    topic_anchor_list=[] :: list()
+}).
+
+-record(offset_fetch_res, {
+    topic_anchor_list=[] :: list()
+}).
+
+-record(offset_fetch_pa_res, {
+    partition  :: integer(),
+    offset     :: integer(),
+    error_code :: integer()
+}).
