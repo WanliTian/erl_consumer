@@ -112,17 +112,17 @@
 }).
 
 
--record(offset_fetch_req, {
+-record(offset_req, {
     group_id :: binary(),
     topic_anchor_list=[] :: list()
 }).
 
--record(offset_fetch_res, {
+-record(offset_res, {
     topic_anchor_list=[] :: list()
 }).
 
 -record(offset_fetch_pa_res, {
     partition  :: integer(),
-    offset     :: integer(),
+    offset=0   :: integer(),
     error_code :: integer()
 }).
