@@ -13,8 +13,9 @@
 
 -record(conn_state,{
     bro           :: #location{},
-    coo           :: #location{}
+    coor          :: #location{},
     anchor        :: #anchor{},
     offset        :: integer(),
+    messages=[]   :: list(),
     is_down=false :: boolean()
 }).
