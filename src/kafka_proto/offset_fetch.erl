@@ -19,8 +19,8 @@ new(GroupId) ->
 -spec add(binary(), binary(), #offset_req{}) -> 
     {ok, #offset_req{}}.
 add(Topic, Partition, #offset_req{topic_anchor_list = AnchorList}=Req) ->
-    NewAnchorList = lists:map(
-        fun(TopicAnchor = #topic_anchor{topic = AnchorTopic, partition_anchor_list= PAnchorList}) ->
+    {NewAnchorList, Changed} = lists:foldl(
+        fun(TopicAnchor = #topic_anchor{topic = AnchorTopic, partition_anchor_list= PAnchorList}, {Result,IsChanged}) ->
                 case AnchorTopic of 
                     Topic  ->
                         NewPAnchorList = case lists:member(Partition, PAnchorList) of 
@@ -29,15 +29,15 @@ add(Topic, Partition, #offset_req{topic_anchor_list = AnchorList}=Req) ->
                             false ->
                                 [Partition | PAnchorList]
                         end,
-                        TopicAnchor#topic_anchor{partition_anchor_list = NewPAnchorList};
+                        {[TopicAnchor#topic_anchor{partition_anchor_list = NewPAnchorList} | Result], true};
                     _ ->
-                        TopicAnchor
+                        {[TopicAnchor | Result], IsChanged}
                 end
-        end, AnchorList),
+        end, {[], false}, AnchorList),
     %%% there are no that topic
-    NewAnchorList2 = case NewAnchorList of 
-        AnchorList ->
-            [#topic_anchor{topic = Topic, partition_anchor_list=[Partition]}];
+    NewAnchorList2 = case Changed of 
+        false ->
+            [#topic_anchor{topic = Topic, partition_anchor_list=[Partition]} | NewAnchorList];
         _ ->
             NewAnchorList
     end,
