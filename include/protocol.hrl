@@ -37,12 +37,12 @@
     magic_byte=0  :: integer(),
     attributes=0  :: integer(),
     key=undefined :: binary(),
+    offset        :: integer(),
     value         :: binary()
 }).
 
 -record(message_set, {
-    offset=0 :: integer(),
-    message  :: #message{}
+    messages :: list()
 }).
 
 -record(metadata_req,{
@@ -123,6 +123,6 @@
 
 -record(offset_fetch_pa_res, {
     partition  :: integer(),
-    offset=0   :: integer(),
+    offset=-1  :: integer(),
     error_code :: integer()
 }).

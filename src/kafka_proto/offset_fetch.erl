@@ -137,11 +137,12 @@ offset_fetch_encode_test() ->
 
 offset_fetch_decode_test() ->
     {ok, F} = ?MODULE:new(<<"blcs-channel-1001">>),
-    {ok, F2} = ?MODULE:add(<<"blcs-channel-1001">>, 20, F),
+    {ok, F2} = ?MODULE:add(<<"blcs-channel-1001">>, 2, F),
     {ok, Packet} = ?MODULE:encode(F2),
     {ok, Ref} = gen_tcp:connect("localhost", 9092, [binary, {active, true}, {packet, 4}]),
     gen_tcp:send(Ref, Packet),
-    _Res = receive {tcp, _, P}-> {ok, Res}= ?MODULE:decode(P), Res end,
+    Response = receive {tcp, _, P}-> {ok, Res}= ?MODULE:decode(P), Res end,
+    ?debugFmt("~p~n", [Response]),
     gen_tcp:close(Ref).
 
 -endif.

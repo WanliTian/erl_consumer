@@ -15,7 +15,7 @@
     bro           :: #location{},
     coor          :: #location{},
     anchor        :: #anchor{},
-    offset        :: integer(),
+    offset=-1     :: integer(),
     messages=[]   :: list(),
     is_down=false :: boolean()
 }).

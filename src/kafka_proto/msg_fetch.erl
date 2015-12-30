@@ -16,8 +16,8 @@
 new() ->
     {ok, #fetch_req{}}.
 
--spec add(#fetch_req{}, binary(), integer(), integer()) -> {ok, #fetch_req{}}.
-add(FetchReq=#fetch_req{topic_anchor_list = TopicAnchorList}, Topic, Partition, Offset) ->
+-spec add(binary(), integer(), integer(), #fetch_req{}) -> {ok, #fetch_req{}}.
+add(Topic, Partition, Offset, FetchReq=#fetch_req{topic_anchor_list = TopicAnchorList}) ->
     NewTopicAnchorList = lists:map(fun(TopicAnchor=#topic_anchor{topic = AnchorTopic, partition_anchor_list = PartitionAnchorList}) ->
                 case AnchorTopic of 
                     Topic ->
@@ -91,17 +91,17 @@ decode_message_sets(Packet) ->
     {MessageSet, RestPacket}.
 
 decode_message_set(<<>>, Result) ->
-    lists:reverse(Result);
+    Messages = lists:reverse(Result),
+    #message_set{
+        messages = Messages
+    };
 decode_message_set(Packet, Result) ->
     <<Offset:64/signed, MessageSize:32/signed, MessageBin:MessageSize/binary, RestPacket/binary>> = Packet,
     case MessageSize > 0 of 
         true ->
             Message = decode_message(MessageBin),
-            MessageSet = #message_set{
-                offset = Offset,
-                message = Message
-            },
-            decode_message_set(RestPacket, [MessageSet | Result]);
+            NewMessage = Message#message{offset = Offset},
+            decode_message_set(RestPacket, [NewMessage | Result]);
         false ->
             decode_message_set(RestPacket, Result)
     end.
@@ -134,14 +134,14 @@ encode_partition_anchor(#req_partition_anchor{partition = Partition,
 -ifdef(TEST).
 fetch_add_test() ->
     {ok, F} = msg_fetch:new(),
-    {ok, F1} = msg_fetch:add(F, <<"topic">>, 1, 1),
+    {ok, F1} = msg_fetch:add(<<"topic">>, 1, 1, F),
     [T] = F1#fetch_req.topic_anchor_list,
     <<"topic">> = T#topic_anchor.topic,
     [P] = T#topic_anchor.partition_anchor_list,
     1 = P#req_partition_anchor.partition,
     1 = P#req_partition_anchor.offset,
 
-    {ok, F2} = msg_fetch:add(F1, <<"topic">>, 2, 2),
+    {ok, F2} = msg_fetch:add(<<"topic">>, 2, 2, F1),
     [T2] = F2#fetch_req.topic_anchor_list,
     <<"topic">> = T2#topic_anchor.topic,
     P2 = T2#topic_anchor.partition_anchor_list,
@@ -153,7 +153,7 @@ fetch_add_test() ->
                         Offset = 2
                 end end, P2),
 
-    {ok, F3} = msg_fetch:add(F2, <<"another_topic">>, 23, 23),
+    {ok, F3} = msg_fetch:add(<<"another_topic">>, 23, 23, F2),
     T3 = F3#fetch_req.topic_anchor_list,
     lists:foreach(fun(#topic_anchor{topic = Topic, partition_anchor_list = PList}) ->
                 Len = erlang:length(PList),
@@ -170,13 +170,13 @@ fetch_add_test() ->
 
 fetch_encode_test() ->
     {ok, F} = msg_fetch:new(),
-    {ok, F1} = msg_fetch:add(F, <<"topic">>, 1, 1),
+    {ok, F1} = msg_fetch:add(<<"topic">>, 1, 1, F),
     {ok, Packet} = msg_fetch:encode(F1),
     {ok, Packet} = encode(<<"topic">>, 1, 1).
 
 fetch_decode_test() ->
     {ok, F} = msg_fetch:new(),
-    {ok, F1} = msg_fetch:add(F, <<"blcs-channel-1001">>, 1,1),
+    {ok, F1} = msg_fetch:add(<<"blcs-channel-1001">>, 1,1, F),
     {ok, Packet} = msg_fetch:encode(F1),
     {ok, Ref} = gen_tcp:connect("localhost", 9092, [binary, {active, true}, {packet, 4}]),
     gen_tcp:send(Ref, Packet),

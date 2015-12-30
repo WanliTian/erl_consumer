@@ -10,6 +10,7 @@
                  ]},
   {mod, { erl_consumer_app, []}},
   {env, [
-        {kafka_brokers, []}
+        {kafka_brokers, []},
+        {auto_offset_reset, largest}
   ]}
  ]}.
