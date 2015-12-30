@@ -10,7 +10,11 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start_link/1]).
+-export([
+    start_link/1,
+    fetch/1,
+    ack/1
+]).
 
 %% ------------------------------------------------------------------
 %% gen_fsm Function Exports
@@ -23,15 +27,20 @@
 %% ------------------------------------------------------------------
 %% API Function Definitions
 %% ------------------------------------------------------------------
-
 start_link(Args) ->
     gen_fsm:start_link({local, ?SERVER}, ?MODULE, Args, []).
 
+fetch(Pid) ->
+    gen_fsm:sync_send_event(Pid, fetch, infinity).
+
+ack(Pid) ->
+    gen_fsm:sync_send_event(Pid, ack).
 %% ------------------------------------------------------------------
 %% gen_fsm Function Definitions
 %% ------------------------------------------------------------------
 
 init({Host, Port, GroupId, Topic, Partition}) ->
+    gproc:reg({n, l, {GroupId, Topic, Partition}}),
     State = #conn_state{
         bro = #location{
             host = Host,

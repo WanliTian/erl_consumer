@@ -15,3 +15,8 @@ get_auto_offset_rest() ->
         _ ->
             -2
     end.
+
+-spec get_msg_callback(binary()) -> {atom(), atom()}.
+get_msg_callback(Topic) ->
+    Props = application:get_env(erl_consumer, msg_callback, []),
+    proplists:get_value(Topic, Props, {common_lib, notice}).
