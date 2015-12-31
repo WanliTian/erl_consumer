@@ -82,6 +82,8 @@ metadata([{Host, Port}|Brokers]=B) ->
 create_controller(ok) ->
     ok;
 create_controller(#metadata_res{topics=Topics}) ->
-    lists:foreach(fun(#topic{name = Topic}) ->
+    lists:foreach(fun(#topic{name = <<"__consumer_offsets">>}) ->
+                ok;
+            (#topic{name = Topic}) ->
                 ok = controller_sup:start_child(Topic)
         end, Topics).
