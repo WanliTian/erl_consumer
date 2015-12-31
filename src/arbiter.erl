@@ -31,7 +31,7 @@ start_link() ->
 %% ------------------------------------------------------------------
 
 init(Args) ->
-    {ok, Args}.
+    {ok, Args, 0}.
 
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
@@ -39,6 +39,11 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
+handle_info(timeout, State) ->
+    Brokers = config:get_kafka_brokers(),
+    Metadata = metadata(Brokers),
+    io:format("Metadata: ~p~n", [Metadata]),
+    {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -52,3 +57,20 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
 
+metadata([]) ->
+    lager:error("All kafka brokers is down~n"),
+    spawn(fun() -> application:stop(erl_consumer) end);
+metadata([{Host, Port}|Brokers]=B) ->
+    case connection_sup:start_child({Host, Port, <<>>, <<>>, -1}) of 
+        ok ->
+            case connection:metadata(gproc:where({n, l, {<<>>, <<>>, -1}})) of 
+                down ->
+                    metadata(Brokers);
+                retry ->
+                    metadata(B);
+                Metadata ->
+                    Metadata
+            end;
+        _Other ->
+            metadata(Brokers)
+    end.

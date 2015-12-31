@@ -13,6 +13,7 @@
 -export([
     start_link/1,
     fetch/1,
+    metadata/1,
     ack/1
 ]).
 
@@ -35,6 +36,9 @@ fetch(Pid) ->
 
 ack(Pid) ->
     gen_fsm:sync_send_event(Pid, ack).
+
+metadata(Pid) ->
+    gen_fsm:sync_send_event(Pid, metadata).
 %% ------------------------------------------------------------------
 %% gen_fsm Function Definitions
 %% ------------------------------------------------------------------
@@ -62,42 +66,39 @@ connect(connect_bro, State=#conn_state{bro=#location{host=Host, port=Port}=Bro})
         {ok, Ref} ->
             gen_fsm:send_event(self(), fetch_coor),
             Bro1 = Bro#location{ref=Ref},
-            {ok, connect, State#conn_state{bro=Bro1}};
+            {next_state, connect, State#conn_state{bro=Bro1}};
         {error, Reason} ->
             lager:warning("connection stop, State is : ~p, Reason is : ~p~n",
                 [State, Reason]),
             State1 = State#conn_state{is_down=true},
-            {ok, ready, State1}
+            {next_state, ready, State1}
     end;
 
-connect(fetch_coor, State=#conn_state{bro=#location{ref=BroRef},
-        coor=#location{ref=CoorRef},
-        anchor=#anchor{group_id=GroupId}}) ->
-    case CoorRef of 
-        undefined ->
-            {ok, Req} = coordinator:new(GroupId),
-            {ok, Packet} = coordinator:encode(Req),
-            case gen_tcp:send(BroRef, Packet) of 
-                ok ->
-                    case receive_packet(BroRef) of 
-                        error ->
-                            %% handle_info will process these tcp error
-                            %% so just keep status unchanged
-                            {ok, connect ,State};
-                        Response ->
-                            {ok, #coordinator_res{host=Host, port=Port}}
-                                =coordinator:decode(Response),
-                            gen_fsm:send_event(self(), connect_coor),
-                            Coor = #location{host=Host, port=Port},
-                            {ok, connect, State#conn_state{coor=Coor}}
-                    end;
-                {error, closed} ->
-                    {ok, connect, State}
+connect(fetch_coor, State=#conn_state{
+        anchor=#anchor{group_id = <<"">>, topic = <<"">>}}) ->
+    {next_state, ready, State};
+connect(fetch_coor, State=#conn_state{coor=#location{ref =Ref}}) when Ref =/= undefined->
+    {next_state, ready, State};
+connect(fetch_coor, State=#conn_state{bro=#location{ref=Ref},
+    anchor=#anchor{group_id=GroupId}}) ->
+    {ok, Req} = coordinator:new(GroupId),
+    {ok, Packet} = coordinator:encode(Req),
+    case gen_tcp:send(Ref, Packet) of 
+        ok ->
+            case receive_packet(Ref) of 
+                error ->
+                    %% handle_info will process these tcp error
+                    %% so just keep status unchanged
+                    {reply, connect ,State};
+                Response ->
+                    {reply, #coordinator_res{host=Host, port=Port}}
+                        =coordinator:decode(Response),
+                    gen_fsm:send_event(self(), connect_coor),
+                    Coor = #location{host=Host, port=Port},
+                    {reply, connect, State#conn_state{coor=Coor}}
             end;
-        _ ->
-            %% just reconnect broker connection,
-            %% coor connection is normal, there are no need to reconnect it
-            {ok, ready, State}
+        {error, closed} ->
+            {reply, connect, State}
     end;
 
 connect(connect_coor, State=#conn_state{coor=#location{host=Host,port=Port}=Coor}) ->
@@ -107,15 +108,15 @@ connect(connect_coor, State=#conn_state{coor=#location{host=Host,port=Port}=Coor
             case State1#conn_state.offset of 
                 -1 ->
                     gen_fsm:send_event(self(), init_offset),
-                    {ok, connect, State1};
+                    {next_state, connect, State1};
                 _ ->
-                    {ok, ready, State1}
+                    {next_state, ready, State1}
             end;
         {error,Reason} ->
             lager:warning("connect_coor error, Reason: ~p~n", [Reason]),
             gen_fsm:send_event(self(), fetch_coor),
             State1 = State#conn_state{coor = Coor#location{ref=undefined}},
-            {ok, connect, State1}
+            {next_state, connect, State1}
     end;
 
 connect(init_offset, State=#conn_state{coor=#location{ref=Ref},
@@ -127,20 +128,20 @@ connect(init_offset, State=#conn_state{coor=#location{ref=Ref},
         ok ->
             case receive_packet(Ref) of
                 error ->
-                    {ok, connect, State};
+                    {next_state, connect, State};
                 Response ->
                     {ok, ResRecord} = offset_fetch:decode(Response),
                     Offset = get_offset(ResRecord),
                     State1 = State#conn_state{offset=Offset},
-                    {ok, ready, State1}
+                    {next_state, ready, State1}
             end;
         {error, closed} ->
-            {ok, connect, State}
+            {next_state, connect, State}
     end;
 
 connect(Event, State) ->
     lager:warning("Some events have not handled: ~p~n", [Event]),
-    {ok, connect, State}.
+    {next_state, connect, State}.
 
 connect(_, _, State) ->
     {reply, retry, connect, State}.
@@ -182,6 +183,23 @@ ready(ack, _From, State=#conn_state{messages=[H | Messages],
         {error, closed} ->
             {reply, retry, ready, State}
     end;
+
+ready(metadata, _From, State=#conn_state{bro=#location{ref=Ref}}) ->
+    {ok, Req} = metadata:new(),
+    {ok, Packet} = metadata:encode(Req),
+    case gen_tcp:send(Ref, Packet) of 
+        ok ->
+            case receive_packet(Ref) of 
+                error ->
+                    {reply, retry, ready, State};
+                Response ->
+                    {ok, Result} = metadata:decode(Response),
+                    {reply, Result, ready, State}
+            end;
+        {error, closed} ->
+            {reply, retry, ready, State}
+    end;
+
 ready(stop, _From, State) ->
     {stop, normal, State}.
 
@@ -194,14 +212,15 @@ handle_sync_event(_Event, _From, StateName, State) ->
 handle_info({tcp_closed, Ref}, _StatusName, State=#conn_state{bro=#location{ref=Ref}}) ->
     gen_tcp:close(Ref),
     gen_fsm:send_event(self(), connect_bro),
-    {ok, connect, State};
+    {next_state, connect, State};
 handle_info({tcp_closed, Ref}, _StatusName, State=#conn_state{coor=#location{ref=Ref}=Coor}) ->
     gen_tcp:close(Ref),
     gen_fsm:send_event(self(), connect_coor),
     Coor1 = Coor#location{ref=undefined},
-    {ok, connect, State#conn_state{coor=Coor1}};
-handle_info(_, Status, State) ->
-    {ok, Status, State}.
+    {next_state, connect, State#conn_state{coor=Coor1}};
+handle_info(Cmd, Status, State) ->
+    lager:error("unhandled cmd: ~p~n", [Cmd]),
+    {next_state, Status, State}.
 
 terminate(_Reason, _StateName, #conn_state{coor=#location{ref=CRef},
         bro=#location{ref=BRef}}) ->

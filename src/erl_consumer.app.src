@@ -10,7 +10,7 @@
                  ]},
   {mod, { erl_consumer_app, []}},
   {env, [
-        {kafka_brokers, []},
+        {kafka_brokers, [{"localhost", 9092}, {"localhost", 9093}]},
         {auto_offset_reset, largest},
         {msg_callback, [
             {<<"blcs-channel-1001">>, {common_lib, notice}}
