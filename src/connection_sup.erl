@@ -23,6 +23,8 @@ start_child(Args) ->
             start_child(Args);
         {error, {already_started, _}} ->
             ok;
+        {error, {{already_started, _}, _}} ->
+            ok;
         Other ->
             Other
     end.

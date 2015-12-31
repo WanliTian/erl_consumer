@@ -6,6 +6,8 @@
 -behaviour(gen_server).
 -define(SERVER, ?MODULE).
 
+-include("protocol.hrl").
+
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
@@ -42,7 +44,7 @@ handle_cast(_Msg, State) ->
 handle_info(timeout, State) ->
     Brokers = config:get_kafka_brokers(),
     Metadata = metadata(Brokers),
-    io:format("Metadata: ~p~n", [Metadata]),
+    create_controller(Metadata),
     {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
@@ -59,7 +61,8 @@ code_change(_OldVsn, State, _Extra) ->
 
 metadata([]) ->
     lager:error("All kafka brokers is down~n"),
-    spawn(fun() -> application:stop(erl_consumer) end);
+    spawn(fun() -> application:stop(erl_consumer) end),
+    ok;
 metadata([{Host, Port}|Brokers]=B) ->
     case connection_sup:start_child({Host, Port, <<>>, <<>>, -1}) of 
         ok ->
@@ -72,5 +75,13 @@ metadata([{Host, Port}|Brokers]=B) ->
                     Metadata
             end;
         _Other ->
+            io:format("Other: ~p~n", [_Other]),
             metadata(Brokers)
     end.
+
+create_controller(ok) ->
+    ok;
+create_controller(#metadata_res{topics=Topics}) ->
+    lists:foreach(fun(#topic{name = Topic}) ->
+                ok = controller_sup:start_child(Topic)
+        end, Topics).
