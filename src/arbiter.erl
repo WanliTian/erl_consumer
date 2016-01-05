@@ -33,6 +33,7 @@ start_link() ->
 %% ------------------------------------------------------------------
 
 init(Args) ->
+    net_kernel:monitor_nodes(true),
     {ok, Args, 0}.
 
 handle_call(_Request, _From, State) ->
@@ -42,10 +43,35 @@ handle_cast(_Msg, State) ->
     {noreply, State}.
 
 handle_info(timeout, State) ->
-    Brokers = config:get_kafka_brokers(),
-    Metadata = metadata(Brokers),
-    create_controller(Metadata),
+    common_lib:world(),
+    Topics = common_lib:topics(),
+    lists:foreach(fun(Topic) ->
+        Nodes = common_lib:nodes(Topic),
+        case lists:member(node(), Nodes) of 
+            true ->
+                 ok = controller_sup:start_child(Topic);
+            false ->
+                nop
+        end
+    end, Topics),
     {noreply, State};
+
+handle_info({nodedown, Node}, State) ->
+    handle_info({nodeup, Node}, State);
+
+handle_info({nodeup, Node}, State) ->
+    Topics = common_lib:topics(),
+    lists:foreach(fun(Topic) ->
+        Nodes = common_lib:nodes(Topic),
+        case lists:member(Node, Nodes) of 
+            true ->
+                gen_server:cast(gproc:where({n, l, Topic}), node_changed);
+            false ->
+                nop
+        end
+    end, Topics),
+    {noreply, State};
+
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -59,31 +85,31 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
 
-metadata([]) ->
-    lager:error("All kafka brokers is down~n"),
-    spawn(fun() -> application:stop(erl_consumer) end),
-    ok;
-metadata([{Host, Port}|Brokers]=B) ->
-    case connection_sup:start_child({Host, Port, <<>>, <<>>, -1}) of 
-        ok ->
-            case connection:metadata(gproc:where({n, l, {<<>>, <<>>, -1}})) of 
-                down ->
-                    metadata(Brokers);
-                retry ->
-                    metadata(B);
-                Metadata ->
-                    Metadata
-            end;
-        _Other ->
-            io:format("Other: ~p~n", [_Other]),
-            metadata(Brokers)
-    end.
-
-create_controller(ok) ->
-    ok;
-create_controller(#metadata_res{topics=Topics}) ->
-    lists:foreach(fun(#topic{name = <<"__consumer_offsets">>}) ->
-                ok;
-            (#topic{name = Topic}) ->
-                ok = controller_sup:start_child(Topic)
-        end, Topics).
+%%metadata([]) ->
+%%    lager:error("All kafka brokers is down~n"),
+%%    spawn(fun() -> application:stop(erl_consumer) end),
+%%    ok;
+%%metadata([{Host, Port}|Brokers]=B) ->
+%%    case connection_sup:start_child({Host, Port, <<>>, <<>>, -1}) of 
+%%        ok ->
+%%            case connection:metadata(gproc:where({n, l, {<<>>, <<>>, -1}})) of 
+%%                down ->
+%%                    metadata(Brokers);
+%%                retry ->
+%%                    metadata(B);
+%%                Metadata ->
+%%                    Metadata
+%%            end;
+%%        _Other ->
+%%            io:format("Other: ~p~n", [_Other]),
+%%            metadata(Brokers)
+%%    end.
+%%
+%%create_controller(ok) ->
+%%    ok;
+%%create_controller(#metadata_res{topics=Topics}) ->
+%%    lists:foreach(fun(#topic{name = <<"__consumer_offsets">>}) ->
+%%                ok;
+%%            (#topic{name = Topic}) ->
+%%                ok = controller_sup:start_child(Topic)
+%%        end, Topics).

@@ -12,6 +12,9 @@
   {env, [
         {kafka_brokers, [{"localhost", 9092}, {"localhost", 9093}]},
         {auto_offset_reset, largest},
+        {cluster_info, [
+            {<<"blcs-channel-1001">>, [<<"127.0.0.1">>]}
+        ]},
         {msg_callback, [
             {<<"blcs-channel-1001">>, {common_lib, notice}}
         ]}
