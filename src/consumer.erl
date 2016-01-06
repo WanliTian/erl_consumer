@@ -7,7 +7,10 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start_link/1]).
+-export([
+    start_link/1,
+    close/1
+]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -22,6 +25,9 @@
 
 start_link(Args) ->
     gen_server:start_link(?MODULE, Args, []).
+
+close(Pid) ->
+    gen_server:call(Pid, close).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions

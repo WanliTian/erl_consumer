@@ -25,3 +25,13 @@
     location :: #location{},
     skip_n=0 :: integer()
 }).
+
+-record(kafka_cluster, {
+    brokers :: list(),
+    index=1 :: integer()
+}).
+
+-record(group_state, {
+    topic :: binary(),
+    kafka :: #kafka_cluster{}
+}).

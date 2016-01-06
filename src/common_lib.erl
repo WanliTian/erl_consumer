@@ -7,6 +7,7 @@
     to_atom/1,
     world/0,
     nodes/1,
+    piece/2,
     topics/0,
     nodes_online/1,
     nodename_prefix/0
@@ -65,6 +66,18 @@ topics() ->
 -spec notice(term()) -> term().
 notice(Msg) ->
     lager:notice("~p~n", [Msg]).
+
+piece(PLen, 0) ->
+    PLen;
+piece(PLen, NLen) ->
+    Val = PLen/NLen,
+    Round = erlang:round(Val),
+    case Val > Round of 
+        true ->
+            Round + 1;
+        false ->
+            Round
+    end.
 
 to_list(B) when is_list(B) ->
     B;
