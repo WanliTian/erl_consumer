@@ -49,7 +49,7 @@ handle_info(timeout, State) ->
         Nodes = common_lib:nodes(Topic),
         case lists:member(node(), Nodes) of 
             true ->
-                 ok = controller_sup:start_child(Topic);
+                 ok = cons_group_sup:start_child(Topic);
             false ->
                 nop
         end

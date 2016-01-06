@@ -19,7 +19,7 @@ start_child(Args) ->
         {ok, _} ->
             ok;
         {error, already_present} ->
-            supervisor:delete_child(connection_sup, {GroupId, Topic, Partition}),
+            supervisor:delete_child(?MODULE, {GroupId, Topic, Partition}),
             start_child(Args);
         {error, {already_started, _}} ->
             ok;

@@ -24,7 +24,7 @@ start_link() ->
 
 init([]) ->
     {ok, {{one_for_one, 5, 10}, [
-        ?CHILD(group_sup, supervisor),
+        ?CHILD(cons_group_sup, supervisor),
         ?CHILD(consumer_sup, supervisor),
         ?CHILD(connection_sup, supervisor),
         ?CHILD(arbiter, worker)

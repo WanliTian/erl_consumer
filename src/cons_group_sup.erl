@@ -1,4 +1,4 @@
--module(group_sup).
+-module(cons_group_sup).
 -behaviour(supervisor).
 
 -export([
@@ -12,8 +12,8 @@ start_link() ->
 
 start_child(Topic) ->
     case supervisor:start_child(?MODULE, {Topic,
-                {group, start_link, [Topic]}, 
-                transient, 5000, worker, [group]}) of 
+                {cons_group, start_link, [Topic]}, 
+                transient, 5000, worker, [cons_group]}) of 
         {ok, _} ->
             ok;
         {error, already_present} ->

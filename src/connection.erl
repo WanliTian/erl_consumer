@@ -13,7 +13,7 @@
 -export([
     start_link/1,
     fetch/1,
-    metadata/1,
+    metadata/2,
     ack/1
 ]).
 
@@ -29,7 +29,7 @@
 %% API Function Definitions
 %% ------------------------------------------------------------------
 start_link(Args) ->
-    gen_fsm:start_link({local, ?SERVER}, ?MODULE, Args, []).
+    gen_fsm:start_link(?MODULE, Args, []).
 
 fetch(Pid) ->
     gen_fsm:sync_send_event(Pid, fetch, infinity).
@@ -37,8 +37,8 @@ fetch(Pid) ->
 ack(Pid) ->
     gen_fsm:sync_send_event(Pid, ack).
 
-metadata(Pid) ->
-    gen_fsm:sync_send_event(Pid, metadata).
+metadata(Pid, Topic) ->
+    gen_fsm:sync_send_event(Pid, {metadata, Topic}).
 %% ------------------------------------------------------------------
 %% gen_fsm Function Definitions
 %% ------------------------------------------------------------------
@@ -89,16 +89,16 @@ connect(fetch_coor, State=#conn_state{bro=#location{ref=Ref},
                 error ->
                     %% handle_info will process these tcp error
                     %% so just keep status unchanged
-                    {reply, connect ,State};
+                    {next_state, connect ,State};
                 Response ->
-                    {reply, #coordinator_res{host=Host, port=Port}}
+                    {ok, #coordinator_res{host=Host, port=Port}}
                         =coordinator:decode(Response),
                     gen_fsm:send_event(self(), connect_coor),
                     Coor = #location{host=Host, port=Port},
-                    {reply, connect, State#conn_state{coor=Coor}}
+                    {next_state, connect, State#conn_state{coor=Coor}}
             end;
         {error, closed} ->
-            {reply, connect, State}
+            {next_state, connect, State}
     end;
 
 connect(connect_coor, State=#conn_state{coor=#location{host=Host,port=Port}=Coor}) ->
@@ -162,7 +162,7 @@ ready(fetch, _From, State=#conn_state{messages=[]}) ->
     end;
 ready(fetch, _From, State=#conn_state{messages=Messages}) ->
     [H|_] = Messages,
-    {ready, H, ready, State};
+    {reply, H, ready, State};
 
 ready(ack, _From, State=#conn_state{messages=[H | Messages],
         coor=#location{ref=Ref},
@@ -184,8 +184,8 @@ ready(ack, _From, State=#conn_state{messages=[H | Messages],
             {reply, retry, ready, State}
     end;
 
-ready(metadata, _From, State=#conn_state{bro=#location{ref=Ref}}) ->
-    {ok, Req} = metadata:new(),
+ready({metadata, Topic}, _From, State=#conn_state{bro=#location{ref=Ref}}) ->
+    {ok, Req} = metadata:new(Topic),
     {ok, Packet} = metadata:encode(Req),
     case gen_tcp:send(Ref, Packet) of 
         ok ->
