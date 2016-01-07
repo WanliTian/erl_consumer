@@ -47,7 +47,7 @@ init({Host, Port, GroupId, Topic, Partition}) ->
     gproc:reg({n, l, {GroupId, Topic, Partition}}),
     State = #conn_state{
         bro = #location{
-            host = Host,
+            host = common_lib:to_list(Host),
             port = Port
         },
         coor = #location{},
@@ -75,7 +75,7 @@ connect(connect_bro, State=#conn_state{bro=#location{host=Host, port=Port}=Bro})
     end;
 
 connect(fetch_coor, State=#conn_state{
-        anchor=#anchor{group_id = <<"">>, topic = <<"">>}}) ->
+        anchor=#anchor{partition=-1}}) ->
     {next_state, ready, State};
 connect(fetch_coor, State=#conn_state{coor=#location{ref =Ref}}) when Ref =/= undefined->
     {next_state, ready, State};
@@ -94,7 +94,7 @@ connect(fetch_coor, State=#conn_state{bro=#location{ref=Ref},
                     {ok, #coordinator_res{host=Host, port=Port}}
                         =coordinator:decode(Response),
                     gen_fsm:send_event(self(), connect_coor),
-                    Coor = #location{host=Host, port=Port},
+                    Coor = #location{host=common_lib:to_list(Host), port=Port},
                     {next_state, connect, State#conn_state{coor=Coor}}
             end;
         {error, closed} ->
@@ -260,7 +260,7 @@ receive_packet(Ref) ->
             error
     end.
 
-get_offset(#fetch_res{topic_anchor_list=[TopicAnchor]}) ->
+get_offset(#offset_res{topic_anchor_list=[TopicAnchor]}) ->
     #topic_anchor{partition_anchor_list=[P]} = TopicAnchor,
     Offset = P#offset_fetch_pa_res.offset,
     case Offset of  

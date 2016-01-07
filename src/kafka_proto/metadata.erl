@@ -35,7 +35,10 @@ new(_) ->
 
 -spec encode(#metadata_req{}) -> {ok, binary()}.
 encode(#metadata_req{topics = TopicList}) ->
-    RequestMessage = common_proto:encode_array(TopicList),
+    List = lists:map(fun(Topic) ->
+                common_proto:encode_string(Topic)
+        end, TopicList),
+    RequestMessage = common_proto:encode_array(List),
     Request = common_proto:encode_request(?METADATA_REQUEST, RequestMessage),
     {ok, Request}.
 
@@ -202,7 +205,7 @@ decode_to_isr(Rest)->
 
 -ifdef(TEST).
 metadata_test() ->
-    {ok, MetaReq} = metadata:new(),
+    {ok, MetaReq} = metadata:new(<<"blcs-channel-1001">>),
     {ok, ReqPacket} = metadata:encode(MetaReq),
     {ok, Ref} = gen_tcp:connect("localhost", 9092, [binary, {packet, 4}, {active, true}]),
     gen_tcp:send(Ref, ReqPacket),

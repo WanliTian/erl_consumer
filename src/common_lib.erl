@@ -47,7 +47,7 @@ nodes(Topic) ->
 -spec nodes_online(binary()) -> list().
 nodes_online(Topic) ->
     Nodes = ?MODULE:nodes(Topic),
-    lists:foldl(fun({Node, Pre}) ->
+    lists:foldl(fun(Node, Pre) ->
         case lists:member(Node, Nodes) of 
             true ->
                 [Node|Pre];

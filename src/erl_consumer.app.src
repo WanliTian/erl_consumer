@@ -6,7 +6,8 @@
   {applications, [
                   kernel,
                   stdlib,
-                  gproc
+                  gproc,
+                  lager
                  ]},
   {mod, { erl_consumer_app, []}},
   {env, [

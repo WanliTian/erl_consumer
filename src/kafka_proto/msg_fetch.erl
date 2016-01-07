@@ -50,7 +50,10 @@ encode(#fetch_req{topic_anchor_list = TopicAnchorList}) ->
 -spec  decode(binary()) -> {ok, #fetch_res{}}.
 decode(Packet) ->
     <<_:32/signed, Rest/binary>> = Packet,
-    Result = decode_topics(Rest),
+    Topics = decode_topics(Rest),
+    Result = #fetch_res{
+        topic_anchor_list = Topics
+    },
     {ok, Result}.
 
 %%Internal Functions
@@ -58,8 +61,8 @@ decode(Packet) ->
 decode_topics(Packet) ->
     <<Len:32/signed, RestPacket/binary>> = Packet,
     decode_topics(Len, RestPacket, []).
-decode_topics(0, RestPacket, Result) ->
-    {Result, RestPacket};
+decode_topics(0, _RestPacket, Result) ->
+    Result;
 decode_topics(Len, Packet, Result) ->
     <<TopicLen:16/signed, Topic:TopicLen/binary, RestPacket/binary>> = Packet,
     {Partitions, RestPacket1} = decode_partitions(RestPacket),

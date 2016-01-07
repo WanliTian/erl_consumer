@@ -101,7 +101,6 @@ code_change(_OldVsn, State, _Extra) ->
 %%                    Metadata
 %%            end;
 %%        _Other ->
-%%            io:format("Other: ~p~n", [_Other]),
 %%            metadata(Brokers)
 %%    end.
 %%

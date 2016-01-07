@@ -83,7 +83,7 @@ metadata(State=#group_state{topic=Topic, kafka=Kafka}) ->
                     metadata(State);
                 Metadata ->
                     Brokers = lists:map(fun(#broker{host=Host,port=Port}) ->
-                                {push_lib:to_list(Host), Port}
+                                {common_lib:to_list(Host), Port}
                         end, Metadata#metadata_res.brokers),
                     Index = 
                     case Kafka#kafka_cluster.index < erlang:length(Brokers) of 
@@ -115,7 +115,7 @@ build_conn(State=#group_state{kafka=#kafka_cluster{
     end,
     State#group_state{kafka=Kafka#kafka_cluster{index=FreshIndex}}.
 
-create_consumer(Nodes, Index, #metadata_res{brokers=Brokers, topics=[Topic]}, 
+create_consumer(Nodes, Index, #metadata_res{brokers=Brokers, topics=[TopicInfo]}, 
     #group_state{topic=Topic}) ->
     BMapper =  %% broker id map to {host, port}
         lists:foldl(fun(#broker{id=Id, host=Host, port=Port}, M) ->
@@ -124,17 +124,17 @@ create_consumer(Nodes, Index, #metadata_res{brokers=Brokers, topics=[Topic]},
     PMapper =  %% partition id mapper to broker id for leader
         lists:foldl(fun(#partition{id=Id, leader=Leader}, M) ->
                     M#{Id => Leader}
-            end, #{}, Topic#topic.partitions),
+            end, #{}, TopicInfo#topic.partitions),
 
     Partitions = lists:sort(fun(#partition{id=Id1}, #partition{id=Id2}) ->
                 Id1 > Id2
-        end, Topic#topic.partitions),
+        end, TopicInfo#topic.partitions),
 
     Piece = common_lib:piece(length(Partitions), length(Nodes)),
 
-    case length(Partitions) > (Index * Piece + 1) of 
+    case length(Partitions) > ((Index-1) * Piece + 1) of 
         true ->
-            HoldedPartitions = lists:sublist(Partitions, Index * Piece + 1, Piece),
+            HoldedPartitions = lists:sublist(Partitions, (Index-1) * Piece + 1, Piece),
             lists:foreach(fun(#partition{id=Id}) ->
                 {Host, Port} = maps:get(maps:get(Id, PMapper), BMapper),
                 consumer_sup:start_child({Host, Port, Topic, Topic, Id})

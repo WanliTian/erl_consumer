@@ -117,22 +117,22 @@ encode_partition(Partition) ->
 -ifdef(TEST).
 offset_fetch_add_test() ->
     {ok, F} = ?MODULE:new(<<"blcs-channel-1001">>),
-    {ok, F2} = ?MODULE:add(<<"blcs-channel-1001">>, 20, F),
+    {ok, F2} = ?MODULE:add(<<"blcs-channel-1001">>, 1, F),
     <<"blcs-channel-1001">> = F2#offset_req.group_id,
     [T] = F2#offset_req.topic_anchor_list,
     <<"blcs-channel-1001">> = T#topic_anchor.topic,
     [20] = T#topic_anchor.partition_anchor_list,
 
-    {ok, F2} = ?MODULE:add(<<"blcs-channel-1001">>, 20, F2),
+    {ok, F2} = ?MODULE:add(<<"blcs-channel-1001">>, 1, F2),
 
-    {ok, F3} = ?MODULE:add(<<"blcs-channel-1001">>, 30, F2),
+    {ok, F3} = ?MODULE:add(<<"blcs-channel-1001">>, 2, F2),
     [T1] = F3#offset_req.topic_anchor_list,
     <<"blcs-channel-1001">> = T1#topic_anchor.topic,
     [30,20] = T1#topic_anchor.partition_anchor_list.
 
 offset_fetch_encode_test() ->
     {ok, F} = ?MODULE:new(<<"blcs-channel-1001">>),
-    {ok, F2} = ?MODULE:add(<<"blcs-channel-1001">>, 20, F),
+    {ok, F2} = ?MODULE:add(<<"blcs-channel-1001">>, 1, F),
     {ok, _Packet} = ?MODULE:encode(F2).
 
 offset_fetch_decode_test() ->
