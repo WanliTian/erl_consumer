@@ -2,6 +2,9 @@
 -behaviour(gen_server).
 -define(SERVER, ?MODULE).
 
+-define(SECOND, 1000).
+-define(MINUTE, (60 * ?SECOND)).
+
 -include("erl_consumer.hrl").
 -include("protocol.hrl").
 
@@ -36,22 +39,33 @@ init(Topic) ->
             brokers = config:get_kafka_brokers()
         }
     },
-
-    erlang:send_after(1000, self(), create_consumer),
+    gproc:reg({n, l, Topic}),
+    erlang:send_after(?SECOND, self(), create_consumer),
     {ok, State}.
 
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
-
 handle_cast(_Msg, State) ->
     {noreply, State}.
+
+handle_info(node_changed, State=#group_state{topic=Topic, tref=TRef}) ->
+    erlang:cancel_timer(TRef),
+    Pids = gproc:lookup_pids({p, l, Topic}),
+    lists:foreach(fun(Pid) ->
+            consumer:close(Pid)
+        end, Pids),
+    lists:foreach(fun(Pid) ->
+            util_dead(Pid)
+        end, Pids),
+    handle_info(create_consumer, State);
 
 handle_info(create_consumer, State=#group_state{topic=Topic}) ->
     {Metadata, NewState} = metadata(State),
     Nodes  = sorted_nodes(Topic),
     Index  = string:str(Nodes, [node()]),
     create_consumer(Nodes, Index, Metadata, NewState),
-    {noreply, NewState};
+    TRef = erlang:send_after(?MINUTE, self(), create_consumer),
+    {noreply, NewState#group_state{tref=TRef}};
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -141,4 +155,13 @@ create_consumer(Nodes, Index, #metadata_res{brokers=Brokers, topics=[TopicInfo]}
                 end, HoldedPartitions);
         false ->
             nop
+    end.
+
+util_dead(Pid) ->
+    case erlang:is_process_alive(Pid) of  
+        true ->
+            timer:sleep(100),
+            util_dead(Pid);
+        false ->
+            ok  
     end.

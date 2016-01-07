@@ -27,7 +27,7 @@ start_link(Args) ->
     gen_server:start_link(?MODULE, Args, []).
 
 close(Pid) ->
-    gen_server:call(Pid, close).
+    gen_server:cast(Pid, close).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
@@ -52,6 +52,8 @@ init({Host,Port,GroupId,Topic,Partition}=Args) ->
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
+handle_cast(close, State) ->
+    {stop, normal, State};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -94,7 +96,15 @@ handle_info(timeout, State=#consumer_state{skip_n=N,
 handle_info(_Info, State) ->
     {noreply, State}.
 
-terminate(_Reason, _State) ->
+terminate(_Reason, #consumer_state{anchor=#anchor{
+        group_id=GroupId, topic=Topic, partition=Partition}}) ->
+    case gproc:where({n, l, {GroupId, Topic, Partition}}) of 
+        undefined ->
+            ok;
+        Pid ->
+            connection:close(Pid)
+    end,
+    %%gen_server:call(gproc:where({n,l,{Topic}}), consumer_down),
     ok.
 
 code_change(_OldVsn, State, _Extra) ->

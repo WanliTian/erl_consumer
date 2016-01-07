@@ -14,7 +14,8 @@
     start_link/1,
     fetch/1,
     metadata/2,
-    ack/1
+    ack/1,
+    close/1
 ]).
 
 %% ------------------------------------------------------------------
@@ -39,6 +40,9 @@ ack(Pid) ->
 
 metadata(Pid, Topic) ->
     gen_fsm:sync_send_event(Pid, {metadata, Topic}).
+
+close(Pid) ->
+    gen_fsm:sync_send_event(Pid, close).
 %% ------------------------------------------------------------------
 %% gen_fsm Function Definitions
 %% ------------------------------------------------------------------
@@ -146,6 +150,8 @@ connect(Event, State) ->
     lager:warning("Some events have not handled: ~p~n", [Event]),
     {next_state, connect, State}.
 
+connect(close, _, State) ->
+    {stop, normal, State};
 connect(_, _, State) ->
     {reply, retry, connect, State}.
 
@@ -164,9 +170,6 @@ ready(fetch, _From, State=#conn_state{messages=[]}) ->
                 [] ->
                     {reply, empty, ready, NewState};
                 [H|_] ->
-                    lists:foreach(fun(Message) ->
-                                lager:info("Message: ~p~n", [lager:pr(Message, ?MODULE)])
-                        end, Messages),
                     {reply, H, ready, NewState}
             end
     end;
@@ -210,7 +213,7 @@ ready({metadata, Topic}, _From, State=#conn_state{bro=#location{ref=Ref}}) ->
             {reply, retry, ready, State}
     end;
 
-ready(stop, _From, State) ->
+ready(close, _From, State) ->
     {stop, normal, State}.
 
 handle_event(_Event, StateName, State) ->

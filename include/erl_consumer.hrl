@@ -33,5 +33,6 @@
 
 -record(group_state, {
     topic :: binary(),
+    tref  :: reference(),
     kafka :: #kafka_cluster{}
 }).
