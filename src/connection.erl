@@ -21,7 +21,7 @@
 %% gen_fsm Function Exports
 %% ------------------------------------------------------------------
 
--export([init/1, connect/2, connect/3, ready/3, handle_event/3,
+-export([init/1, connect/2, connect/3, ready/2, ready/3, handle_event/3,
          handle_sync_event/4, handle_info/3, terminate/3,
          code_change/4]).
 
@@ -139,12 +139,19 @@ connect(init_offset, State=#conn_state{coor=#location{ref=Ref},
             {next_state, connect, State}
     end;
 
+connect({tcp_closed, _Ref}=Info, State) ->
+    handle_info(Info, connect, State);
+
 connect(Event, State) ->
     lager:warning("Some events have not handled: ~p~n", [Event]),
     {next_state, connect, State}.
 
 connect(_, _, State) ->
     {reply, retry, connect, State}.
+
+
+ready({tcp_closed, _Ref}=Info, State) ->
+    handle_info(Info, ready, State).
 
 ready(_, _From, State=#conn_state{is_down=true}) ->
     {reply, down, ready, State};
@@ -248,7 +255,7 @@ receive_packet(Ref) ->
     receive 
         {tcp, Ref, Packet} ->
             Packet;
-        Other ->
+        {tcp_closed, Ref}=Other ->
             gen_fsm:send_event(self(), Other),
             error
     end.
