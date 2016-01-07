@@ -158,23 +158,26 @@ ready(_, _From, State=#conn_state{is_down=true}) ->
 ready(fetch, _From, State=#conn_state{messages=[]}) ->
     case fetch_msgs(State) of 
         retry ->
-            {reply, retry, ready, state};
+            {reply, retry, ready, State};
         NewState=#conn_state{messages=Messages} ->
             case Messages of 
                 [] ->
                     {reply, empty, ready, NewState};
                 [H|_] ->
+                    lists:foreach(fun(Message) ->
+                                lager:info("Message: ~p~n", [lager:pr(Message, ?MODULE)])
+                        end, Messages),
                     {reply, H, ready, NewState}
             end
     end;
 ready(fetch, _From, State=#conn_state{messages=Messages}) ->
     [H|_] = Messages,
-    {reply, H, ready, State};
+    {reply, H#message.value, ready, State};
 
 ready(ack, _From, State=#conn_state{messages=[H | Messages],
         coor=#location{ref=Ref},
         anchor=#anchor{group_id=GroupId, partition=Partition, topic=Topic}}) ->
-    Offset = H#message.offset,
+    Offset = H#message.offset + 1,
     {ok, Req}  = offset_commit:new(GroupId),
     {ok, Req1} = offset_commit:add(Topic, Partition, Offset, Req),
     {ok, Packet} = offset_commit:encode(Req1),
@@ -297,7 +300,7 @@ fetch_msgs(State=#conn_state{anchor=#anchor{topic=Topic, partition=Partition}, o
             retry
     end.
 
-fetch_outofrange_offset(#conn_state{anchor=#anchor{topic=Topic, partition=Partition},
+fetch_outofrange_offset(State=#conn_state{anchor=#anchor{topic=Topic, partition=Partition},
         coor=#location{ref=Ref}}) ->
     {ok, Req1}   = offset_range:new(),
     {ok, Req2}   = offset_range:add(Topic, Partition, Req1),
@@ -311,7 +314,7 @@ fetch_outofrange_offset(#conn_state{anchor=#anchor{topic=Topic, partition=Partit
                     {ok, #offset_res{topic_anchor_list=[TopicAnchor]}} 
                         = offset_range:decode(Response),
                     [PartitionAnchor] = TopicAnchor#topic_anchor.partition_anchor_list,
-                    PartitionAnchor#offset_fetch_pa_res.offset
+                    State#conn_state{offset=PartitionAnchor#offset_fetch_pa_res.offset}
 
             end;
         {error, closed} ->
