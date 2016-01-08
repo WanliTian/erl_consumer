@@ -49,8 +49,8 @@ handle_call(_Request, _From, State) ->
 handle_cast(node_changed, State=#group_state{topic=Topic, tref=TRef}) ->
     erlang:cancel_timer(TRef),
     Pids = gproc:lookup_pids({p, l, Topic}),
-    %% consumer:close is gen_server:cast
-    %% to prevent closing to much partition slowly
+    %% consumer:close using gen_server:cast
+    %% to prevent closing many partitions using too much time
     lists:foreach(fun(Pid) ->
             consumer:close(Pid)
         end, Pids),
