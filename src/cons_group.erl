@@ -39,16 +39,14 @@ init(Topic) ->
             brokers = config:get_kafka_brokers()
         }
     },
-    gproc:reg({n, l, Topic}),
+    gproc:reg({n, l, common_lib:to_binary(Topic)}),
     erlang:send_after(?SECOND, self(), create_consumer),
     {ok, State}.
 
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
-handle_cast(_Msg, State) ->
-    {noreply, State}.
 
-handle_info(node_changed, State=#group_state{topic=Topic, tref=TRef}) ->
+handle_cast(node_changed, State=#group_state{topic=Topic, tref=TRef}) ->
     erlang:cancel_timer(TRef),
     Pids = gproc:lookup_pids({p, l, Topic}),
     lists:foreach(fun(Pid) ->
@@ -57,7 +55,11 @@ handle_info(node_changed, State=#group_state{topic=Topic, tref=TRef}) ->
     lists:foreach(fun(Pid) ->
             util_dead(Pid)
         end, Pids),
+    common_lib:clear_specs(consumer_sup),
     handle_info(create_consumer, State);
+handle_cast(_Msg, State) ->
+    {noreply, State}.
+
 
 handle_info(create_consumer, State=#group_state{topic=Topic}) ->
     {Metadata, NewState} = metadata(State),
@@ -163,5 +165,5 @@ util_dead(Pid) ->
             timer:sleep(100),
             util_dead(Pid);
         false ->
-            ok  
+            nop
     end.

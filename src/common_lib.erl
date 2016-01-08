@@ -9,6 +9,7 @@
     nodes/1,
     piece/2,
     topics/0,
+    clear_specs/1,
     nodes_online/1,
     nodename_prefix/0
 ]).
@@ -78,6 +79,17 @@ piece(PLen, NLen) ->
         false ->
             Round
     end.
+
+clear_specs(Sup) ->
+    L = supervisor:which_children(Sup),
+    lists:foreach(fun({Spec, Pid, _, _}) ->
+        case Pid of 
+            undefined ->
+                supervisor:delete_child(Sup, Spec);
+            _ ->
+                nop
+        end 
+    end, L).
 
 to_list(B) when is_list(B) ->
     B;

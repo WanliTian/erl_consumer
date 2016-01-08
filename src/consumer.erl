@@ -98,13 +98,7 @@ handle_info(_Info, State) ->
 
 terminate(_Reason, #consumer_state{anchor=#anchor{
         group_id=GroupId, topic=Topic, partition=Partition}}) ->
-    case gproc:where({n, l, {GroupId, Topic, Partition}}) of 
-        undefined ->
-            ok;
-        Pid ->
-            connection:close(Pid)
-    end,
-    %%gen_server:call(gproc:where({n,l,{Topic}}), consumer_down),
+    connection:close({GroupId, Topic, Partition}),
     ok.
 
 code_change(_OldVsn, State, _Extra) ->

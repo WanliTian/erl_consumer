@@ -41,8 +41,11 @@ ack(Pid) ->
 metadata(Pid, Topic) ->
     gen_fsm:sync_send_event(Pid, {metadata, Topic}).
 
-close(Pid) ->
-    gen_fsm:sync_send_event(Pid, close).
+close({_GroupId, _Topic, _Partition}=Args) ->
+    connection_sup:close_child(Args).
+    %%Pid = gproc:where({n, l, Args}),
+    %%gen_fsm:sync_send_event(Pid, close),
+    %%supervisor:delete_child(Args).
 %% ------------------------------------------------------------------
 %% gen_fsm Function Definitions
 %% ------------------------------------------------------------------

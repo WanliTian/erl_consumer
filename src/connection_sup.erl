@@ -6,6 +6,7 @@
 -export([
     start_link/0,
     start_child/1,
+    close_child/1,
     init/1
 ]).
 
@@ -28,6 +29,10 @@ start_child(Args) ->
         Other ->
             Other
     end.
+
+close_child({_GroupId, _Topic, _Partition}=Arg) ->
+    supervisor:terminate_child(?MODULE, Arg),
+    supervisor:delete_child(?MODULE, Arg).
 
 init([]) ->
     {ok, { {one_for_one, 5, 10}, []} }.
