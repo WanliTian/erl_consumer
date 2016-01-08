@@ -49,12 +49,17 @@ handle_call(_Request, _From, State) ->
 handle_cast(node_changed, State=#group_state{topic=Topic, tref=TRef}) ->
     erlang:cancel_timer(TRef),
     Pids = gproc:lookup_pids({p, l, Topic}),
+    %% consumer:close is gen_server:cast
+    %% to prevent closing to much partition slowly
     lists:foreach(fun(Pid) ->
             consumer:close(Pid)
         end, Pids),
+    %% check all consumer has been terminated
+    %% if not, wait
     lists:foreach(fun(Pid) ->
             util_dead(Pid)
         end, Pids),
+    %% clear child spec which has been terminated
     common_lib:clear_specs(consumer_sup),
     handle_info(create_consumer, State);
 handle_cast(_Msg, State) ->
