@@ -54,6 +54,8 @@ handle_info(timeout, State) ->
                 nop
         end
     end, Topics),
+
+    erlang:send_after(60000, self(), world),
     {noreply, State};
 
 handle_info({nodedown, Node}, State) ->
@@ -70,6 +72,10 @@ handle_info({nodeup, Node}, State) ->
                 nop
         end
     end, Topics),
+    {noreply, State};
+
+handle_info(world, State) ->
+    common_lib:world(),
     {noreply, State};
 
 handle_info(_Info, State) ->
