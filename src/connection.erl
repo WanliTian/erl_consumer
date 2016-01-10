@@ -173,7 +173,8 @@ ready(fetch, _From, State=#conn_state{messages=[]}) ->
                 [] ->
                     {reply, empty, ready, NewState};
                 [H|_] ->
-                    {reply, H, ready, NewState}
+                    lager:info("message: ~p~n", [lager:pr(Messages, ?MODULE)]),
+                    {reply, H#message.value, ready, NewState}
             end
     end;
 ready(fetch, _From, State=#conn_state{messages=Messages}) ->
@@ -194,7 +195,7 @@ ready(ack, _From, State=#conn_state{messages=[H | Messages],
                     {reply, retry, ready, State};
                 Response ->
                     {ok,_} = offset_commit:decode(Response),
-                    {reply, ok, ready, State#conn_state{messages=Messages}}
+                    {reply, ok, ready, State#conn_state{messages=Messages, offset=Offset}}
             end;
         {error, closed} ->
             {reply, retry, ready, State}
