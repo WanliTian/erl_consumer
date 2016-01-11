@@ -43,7 +43,6 @@ metadata(Pid, Topic) ->
 
 close({_GroupId, _Topic, _Partition}=Args) ->
     connection_sup:close_child(Args).
-    %%Pid = gproc:where({n, l, Args}),
     %%gen_fsm:sync_send_event(Pid, close),
     %%supervisor:delete_child(Args).
 %% ------------------------------------------------------------------

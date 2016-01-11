@@ -67,7 +67,7 @@ handle_info({nodeup, Node}, State) ->
         Nodes = common_lib:nodes(Topic),
         case lists:member(Node, Nodes) of 
             true ->
-                gen_server:cast(gproc:where({n, l, common_lib:to_binary(Topic)}), node_changed);
+                gen_server:cast(gproc:where({n, l, {<<"erl_consumer">>, common_lib:to_binary(Topic)}}), node_changed);
             false ->
                 nop
         end

@@ -39,7 +39,7 @@ init(Topic) ->
             brokers = config:get_kafka_brokers()
         }
     },
-    gproc:reg({n, l, common_lib:to_binary(Topic)}),
+    gproc:reg({n, l, {<<"erl_consumer">>, common_lib:to_binary(Topic)}}),
     erlang:send_after(?SECOND, self(), create_consumer),
     {ok, State}.
 
