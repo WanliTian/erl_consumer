@@ -68,12 +68,17 @@ handle_info(timeout, State=#consumer_state{skip_n=0,
             {noreply, State, 0};
         Message ->
             {M, F} = config:get_msg_callback(Topic),
-            erlang:apply(M, F, [Message]),
-            case ack(State) of 
-                ok ->
-                    {noreply, State, 0};
-                down ->
-                    {sotp ,normal, State}
+            case erlang:apply(M, F, [Message]) of 
+                true ->
+                    case ack(State) of 
+                        ok ->
+                            {noreply, State, 0};
+                        down ->
+                            {sotp ,normal, State}
+                    end;
+                %%% false indicates retry more
+                false ->
+                    {noreply, State, 0}
             end
     end;
 handle_info(timeout, State=#consumer_state{skip_n=N,
