@@ -97,11 +97,18 @@ connect(fetch_coor, State=#conn_state{bro=#location{ref=Ref},
                     %% so just keep status unchanged
                     {next_state, connect ,State};
                 Response ->
-                    {ok, #coordinator_res{host=Host, port=Port}}
+                    {ok, #coordinator_res{host=Host, port=Port,error_code=ErrorCode}}
                         =coordinator:decode(Response),
-                    gen_fsm:send_event(self(), connect_coor),
-                    Coor = #location{host=common_lib:to_list(Host), port=Port},
-                    {next_state, connect, State#conn_state{coor=Coor}}
+                    case ErrorCode of 
+                        ?ConsumerCoordinatorNotAvailableCode ->
+                            timer:sleep(500),
+                            gen_fsm:send_event(self(), fetch_coor),
+                            {next_state, connect, State};
+                        _ ->
+                            gen_fsm:send_event(self(), connect_coor),
+                            Coor = #location{host=common_lib:to_list(Host), port=Port},
+                            {next_state, connect, State#conn_state{coor=Coor}}
+                    end
             end;
         {error, closed} ->
             {next_state, connect, State}
@@ -167,6 +174,8 @@ ready(fetch, _From, State=#conn_state{messages=[]}) ->
     case fetch_msgs(State) of 
         retry ->
             {reply, retry, ready, State};
+        down ->
+            {reply, down, ready, State};
         NewState=#conn_state{messages=Messages} ->
             case Messages of 
                 [] ->
@@ -297,6 +306,10 @@ fetch_msgs(State=#conn_state{anchor=#anchor{topic=Topic, partition=Partition}, o
                     case PartitionAnchor#res_partition_anchor.error_code of 
                         ?OffsetOutOfRange ->
                             fetch_msgs(fetch_outofrange_offset(State));
+                        ?NotLeaderForPartition ->
+                            down;
+                        ?UnknownTopicOrPartition ->
+                            down;
                         _ ->
                             #message_set{messages=Messages} = PartitionAnchor#res_partition_anchor.message_set,
                             State#conn_state{messages = Messages}
