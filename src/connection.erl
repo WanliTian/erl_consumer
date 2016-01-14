@@ -181,7 +181,6 @@ ready(fetch, _From, State=#conn_state{messages=[]}) ->
                 [] ->
                     {reply, empty, ready, NewState};
                 [H|_] ->
-                    lager:info("message: ~p~n", [lager:pr(Messages, ?MODULE)]),
                     {reply, H#message.value, ready, NewState}
             end
     end;
