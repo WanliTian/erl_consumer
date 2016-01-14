@@ -97,7 +97,9 @@ handle_info(timeout, State=#consumer_state{skip_n=N,
             {noreply, State, 0};
         empty ->
             {noreply, State, 0};
-        _ ->
+        Message ->
+            lager:warning("Pid: ~p, State: ~p, Skip One Message:~p~n", [
+                    self(), State, Message]),
             case ack(State) of 
                 ok ->
                     {noreply, State#consumer_state{skip_n=N-1}, 0};
