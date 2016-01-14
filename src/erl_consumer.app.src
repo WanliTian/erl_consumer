@@ -6,15 +6,16 @@
   {applications, [
                   kernel,
                   stdlib,
+                  lager,
                   gproc,
-                  lager
+                  mconfig
                  ]},
   {mod, { erl_consumer_app, []}},
   {env, [
-        {kafka_brokers, [{"localhost", 9092}, {"localhost", 9093}]},
+        {kafka_brokers, [{"cp01-ocean-1553.epc.baidu.com", 9092}, {"cp01-ocean-1553.epc.baidu.com", 9093}]},
         {auto_offset_reset, largest},
         {cluster_info, [
-            {<<"blcs-channel-1001">>, [<<"127.0.0.1">>]}
+            {<<"blcs-channel-1001">>, [<<"cp01-ocean-1553.epc.baidu.com">>, <<"cp01-testing-lv02-07.cp01.baidu.com">>]}
         ]},
         {msg_callback, [
             {<<"blcs-channel-1001">>, {common_lib, notice}}

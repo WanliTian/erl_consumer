@@ -12,7 +12,9 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start_link/1]).
+-export([
+    start_link/1
+]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -76,7 +78,20 @@ handle_info(create_consumer, State=#group_state{topic=Topic}) ->
 handle_info(_Info, State) ->
     {noreply, State}.
 
-terminate(_Reason, _State) ->
+terminate(_Reason, #group_state{topic=Topic}) ->
+    Pids = gproc:lookup_pids({p, l, Topic}),
+    %% consumer:close using gen_server:cast
+    %% to prevent closing many partitions using too much time
+    lists:foreach(fun(Pid) ->
+            consumer:close(Pid)
+        end, Pids),
+    %% check all consumer has been terminated
+    %% if not, wait
+    lists:foreach(fun(Pid) ->
+            util_dead(Pid)
+        end, Pids),
+    %% clear child spec which has been terminated
+    common_lib:clear_specs(consumer_sup),
     ok.
 
 code_change(_OldVsn, State, _Extra) ->

@@ -4,6 +4,7 @@
 -export([
     start_link/0,
     start_child/1,
+    close_child/1,
     init/1
 ]).
 
@@ -26,6 +27,10 @@ start_child(Topic) ->
         Other ->
             Other
     end.
+
+close_child(Topic) ->
+    supervisor:terminate_child(?MODULE, Topic),
+    supervisor:delete_child(?MODULE, Topic).
 
 init([]) ->
     {ok, { {one_for_one, 5, 10}, []} }.

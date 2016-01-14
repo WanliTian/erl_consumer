@@ -34,6 +34,7 @@ start_link() ->
 
 init(Args) ->
     net_kernel:monitor_nodes(true),
+    sub_file_changing(),
     {ok, Args, 0}.
 
 handle_call(_Request, _From, State) ->
@@ -42,7 +43,7 @@ handle_call(_Request, _From, State) ->
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-handle_info(timeout, State) ->
+handle_info(timeout, _State) ->
     common_lib:world(),
     Topics = common_lib:topics(),
     lists:foreach(fun(Topic) ->
@@ -55,8 +56,8 @@ handle_info(timeout, State) ->
         end
     end, Topics),
 
-    erlang:send_after(60000, self(), world),
-    {noreply, State};
+    TimeRef = erlang:send_after(60000, self(), world),
+    {noreply, TimeRef};
 
 handle_info({nodedown, Node}, State) ->
     handle_info({nodeup, Node}, State);
@@ -74,9 +75,29 @@ handle_info({nodeup, Node}, State) ->
     end, Topics),
     {noreply, State};
 
-handle_info(world, State) ->
+handle_info(world, _State) ->
+    TimeRef = erlang:send_after(60000, self(), world),
     common_lib:world(),
-    {noreply, State};
+    {noreply, TimeRef};
+
+handle_info({erl_consumer, kafka_brokers, _OldValue, _NewValue}, TimeRef) ->
+    erlang:cancel_timer(TimeRef),
+    lists:foreach(fun({Topic, _, _, _}) ->
+                cons_group_sup:close_child(Topic)
+        end, supervisor:which_children(cons_group_sup)),
+    handle_info(timeout, TimeRef);
+
+handle_info({erl_consumer, cluster_info, _OldValue, _NewValue}, TimeRef) ->
+    erlang:cancel_timer(TimeRef),
+    Topics = common_lib:topics(),
+    lists:foreach(fun({Topic, _, _, _}) ->
+                case lists:member(Topic, Topics) of 
+                    true ->
+                        nop;
+                    false ->
+                        cons_group_sup:close_child(Topic)
+                end end, supervisor:which_children(cons_group_sup)),
+     handle_info(timeout, TimeRef);
 
 handle_info(_Info, State) ->
     {noreply, State}.
@@ -90,31 +111,6 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
-
-%%metadata([]) ->
-%%    lager:error("All kafka brokers is down~n"),
-%%    spawn(fun() -> application:stop(erl_consumer) end),
-%%    ok;
-%%metadata([{Host, Port}|Brokers]=B) ->
-%%    case connection_sup:start_child({Host, Port, <<>>, <<>>, -1}) of 
-%%        ok ->
-%%            case connection:metadata(gproc:where({n, l, {<<>>, <<>>, -1}})) of 
-%%                down ->
-%%                    metadata(Brokers);
-%%                retry ->
-%%                    metadata(B);
-%%                Metadata ->
-%%                    Metadata
-%%            end;
-%%        _Other ->
-%%            metadata(Brokers)
-%%    end.
-%%
-%%create_controller(ok) ->
-%%    ok;
-%%create_controller(#metadata_res{topics=Topics}) ->
-%%    lists:foreach(fun(#topic{name = <<"__consumer_offsets">>}) ->
-%%                ok;
-%%            (#topic{name = Topic}) ->
-%%                ok = controller_sup:start_child(Topic)
-%%        end, Topics).
+sub_file_changing() ->
+    mconfig_server:sub(erl_consumer, kafka_brokers, self()),
+    mconfig_server:sub(erl_consumer, cluster_info, self()).
