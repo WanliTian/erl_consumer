@@ -16,3 +16,4 @@ kafka consumer erlang client
 - [x] auto start/stop workers based on kafka broker down/up/add/remove/change
 - [x] skip messages for partitions
 - [x] change kafka brokers dynamicly
+- [x] auto config reload
