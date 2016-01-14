@@ -9,6 +9,7 @@
 
 -export([
     start_link/1,
+    skip/2,
     close/1
 ]).
 
@@ -28,6 +29,9 @@ start_link(Args) ->
 
 close(Pid) ->
     gen_server:cast(Pid, close).
+
+skip(Pid, N) ->
+    gen_server:cast(Pid, {skip, N}).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
@@ -51,6 +55,9 @@ init({Host,Port,GroupId,Topic,Partition}=Args) ->
 
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
+
+handle_cast({skip, SN}, State=#consumer_state{skip_n=N}) ->
+    {noreply, State#consumer_state{skip_n = N + SN}};
 
 handle_cast(close, State) ->
     {stop, normal, State};
