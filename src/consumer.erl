@@ -110,9 +110,11 @@ handle_info(timeout, State=#consumer_state{skip_n=N,
 handle_info(_Info, State) ->
     {noreply, State}.
 
-terminate(_Reason, #consumer_state{anchor=#anchor{
+terminate(Reason, State=#consumer_state{anchor=#anchor{
         group_id=GroupId, topic=Topic, partition=Partition}}) ->
     connection:close({GroupId, Topic, Partition}),
+    lager:warning("consumer close for reason: ~p, pid: ~p, state:~p~n", [
+            Reason, self(), State]),
     ok.
 
 code_change(_OldVsn, State, _Extra) ->

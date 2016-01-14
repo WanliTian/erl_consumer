@@ -64,9 +64,10 @@ topics() ->
         Topic
     end, ClusterInfo).
 
--spec notice(term()) -> term().
+-spec notice(term()) -> true.
 notice(Msg) ->
-    lager:notice("~p~n", [Msg]).
+    lager:notice("~p~n", [Msg]),
+    true.
 
 piece(PLen, 0) ->
     PLen;
