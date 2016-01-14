@@ -53,16 +53,19 @@ init({Host,Port,GroupId,Topic,Partition}=Args) ->
     },
     {ok, State, 0}.
 
-handle_call(_Request, _From, State) ->
-    {reply, ok, State}.
+handle_call(Request, From, State) ->
+    lager:info("Unhandled request, Pid: ~p, Request: ~p, From: ~p~n", [
+            self(), Request, From]),
+    {reply, ok, State, 0}.
 
 handle_cast({skip, SN}, State=#consumer_state{skip_n=N}) ->
-    {noreply, State#consumer_state{skip_n = N + SN}};
+    {noreply, State#consumer_state{skip_n = N + SN}, 0};
 
 handle_cast(close, State) ->
     {stop, normal, State};
-handle_cast(_Msg, State) ->
-    {noreply, State}.
+handle_cast(Msg, State) ->
+    lager:error("Unhandled cast: ~p, state: ~p~n", [Msg, State]),
+    {noreply, State, 0}.
 
 handle_info(timeout, State=#consumer_state{skip_n=0,
         anchor=#anchor{group_id=GroupId, topic=Topic, partition=Partition}}) ->
@@ -107,7 +110,8 @@ handle_info(timeout, State=#consumer_state{skip_n=N,
                     {stop, normal, State}
             end
     end;
-handle_info(_Info, State) ->
+handle_info(Info, State) ->
+    lager:error("Unhandled info: ~p, state: ~p", [Info, State]),
     {noreply, State}.
 
 terminate(Reason, State=#consumer_state{anchor=#anchor{
