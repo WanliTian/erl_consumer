@@ -1,7 +1,7 @@
 -module(connection).
 -behaviour(gen_fsm).
 -define(SERVER, ?MODULE).
--define(TCP_OPTS, [binary, {active, true}, {packet, 4}]).
+-define(TCP_OPTS, [binary, {active, true}, {packet, 4}, {reuseaddr, true}]).
 
 -include("erl_consumer.hrl").
 -include("protocol.hrl").
