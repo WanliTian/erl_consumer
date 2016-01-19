@@ -319,7 +319,7 @@ fetch_msgs(State=#conn_state{anchor=#anchor{topic=Topic, partition=Partition}, o
     end.
 
 fetch_outofrange_offset(State=#conn_state{anchor=#anchor{topic=Topic, partition=Partition},
-        coor=#location{ref=Ref}}) ->
+        bro=#location{ref=Ref}}) ->
     {ok, Req1}   = offset_range:new(),
     {ok, Req2}   = offset_range:add(Topic, Partition, Req1),
     {ok, Packet} = offset_range:encode(Req2),
