@@ -89,7 +89,13 @@ decode_partitions(Len, Packet, Result) ->
 
 decode_partition(Packet) ->
     <<Partition:32/signed, ErrorCode:16/signed, RestPacket/binary>> = Packet,
-    <<1:32/signed, Offset:64/signed, RestPacket1/binary>> = RestPacket,
+    {Offset, RestPacket1} = 
+    case RestPacket of 
+        <<1:32/signed, IOffset:64/signed, IRestPacket1/binary>> ->
+            {IOffset, IRestPacket1};
+        <<0:32/signed, IRestPacket1>> ->
+            {0, IRestPacket1}
+    end,
     PAnchor = #offset_fetch_pa_res{
         partition  = Partition,
         offset     = Offset,
