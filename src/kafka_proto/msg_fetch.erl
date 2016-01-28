@@ -93,18 +93,21 @@ decode_message_sets(Packet) ->
     MessageSet = decode_message_set(MessageSetBin, []),
     {MessageSet, RestPacket}.
 
-decode_message_set(<<>>, Result) ->
+decode_message_set(Packet, Result) when erlang:size(Packet) < 12 ->
     Messages = lists:reverse(Result),
     #message_set{
         messages = Messages
     };
 decode_message_set(Packet, Result) ->
-    <<Offset:64/signed, MessageSize:32/signed, MessageBin:MessageSize/binary, RestPacket/binary>> = Packet,
+    <<Offset:64/signed, MessageSize:32/signed, RestPacket/binary>> = Packet,
     case MessageSize > 0 of 
-        true ->
+        true when MessageSize =< erlang:size(RestPacket) ->
+            <<MessageBin:MessageSize/binary, RestPacket1/binary>> = RestPacket,
             Message = decode_message(MessageBin),
             NewMessage = Message#message{offset = Offset},
-            decode_message_set(RestPacket, [NewMessage | Result]);
+            decode_message_set(RestPacket1, [NewMessage | Result]);
+        true ->
+            decode_message_set(<<>>, Result);
         false ->
             decode_message_set(RestPacket, Result)
     end.
